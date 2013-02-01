@@ -15,7 +15,7 @@ IGNORED_FIELDS = ['id', ]
 # Enable all basic ORM filters but do not allow filtering across relationships.
 ALL = 1
 # Enable all ORM filters, including across relationships
-ALL_WITH_RELATIONS = 2
+ALL_WITH_RELATIONS = 0
 
 class ResourceSwaggerMapping(object):
     """
@@ -169,14 +169,15 @@ class ResourceSwaggerMapping(object):
                                 field = QUERY_TERMS
 
                     elif field == ALL_WITH_RELATIONS: # Show all params from related model
-                        # Add a subset of filter only foreign-key compatible on the relation itself.
-                        # We assume foreign keys are only int based.
-                        field = ['gt','in','gte', 'lt', 'lte','exact'] # TODO This could be extended by checking the actual type of the relational field, but afaik it's also an issue on tastypie.
-                        related_resource = self.resource.fields[name].get_related_resource(None)
-                        related_mapping = ResourceSwaggerMapping(related_resource)
-                        parameters.extend(related_mapping.build_parameters_from_filters(prefix="%s%s__" % (prefix, name)))
+                        try:
+                            related_resource = self.resource.fields[name].get_related_resource(None)
+                            related_mapping = ResourceSwaggerMapping(related_resource)
+                            if related_mapping.resource_name != self.resource_name:
+                                parameters.extend(related_mapping.build_parameters_from_filters(prefix="%s%s__" % (prefix, related_mapping.resource_name)))
+                        except (AttributeError, KeyError), e:
+                            pass
 
-                if isinstance( field, list ):
+                elif isinstance( field, list ):
                     # Skip if this is an incorrect filter
                     if name not in self.schema['fields']: continue
 
